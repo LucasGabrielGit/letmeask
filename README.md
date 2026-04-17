@@ -1,75 +1,132 @@
-# React + TypeScript + Vite
+<h1 align="center">
+  <img src="./src/assets/logo.svg" alt="Letmeask" width="180" />
+</h1>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<p align="center">
+  Plataforma de perguntas e respostas em tempo real para lives, aulas e apresentações.
+</p>
 
-Currently, two official plugins are available:
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61dafb?style=flat&logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?style=flat&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Firebase-Realtime_DB-FFCA28?style=flat&logo=firebase&logoColor=black" />
+  <img src="https://img.shields.io/badge/TailwindCSS-4-38bdf8?style=flat&logo=tailwindcss&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-8-646CFF?style=flat&logo=vite&logoColor=white" />
+</p>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 📖 Sobre
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+O **Letmeask** permite que apresentadores criem salas de Q&A ao vivo, onde a audiência pode enviar perguntas, curtir as favoritas e responder umas às outras — tudo em tempo real via Firebase.
 
-Note: This will impact Vite dev & build performances.
+---
 
-## Expanding the ESLint configuration
+## 🚀 Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+| Camada | Tecnologia |
+|---|---|
+| Framework UI | React 19 + TypeScript 5.9 |
+| Build | Vite 8 |
+| Roteamento | TanStack Router v1 |
+| Servidor de estado | TanStack Query v5 |
+| Backend / Auth | Firebase (Realtime Database + Google Auth) |
+| Estilização | Tailwind CSS v4 |
+| Componentes | shadcn/ui (Radix UI) |
+| Ícones | Lucide React |
+| Notificações | Sonner |
+| Tipagem de formulários | Zod |
+| Tema (dark/light) | next-themes |
+| Fontes | Geist Variable |
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## ✅ Funcionalidades
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Autenticação
+- [x] Login com Google (Firebase Auth)
+- [x] Logout
+- [x] Tema claro / escuro persistente
+
+### Salas
+- [x] Criar nova sala
+- [x] Entrar em sala via código
+- [x] Encerramento de sala pelo admin (redireciona todos os participantes)
+
+### Perguntas
+- [x] Enviar perguntas (usuário autenticado)
+- [x] Curtir perguntas (like/unlike em tempo real)
+- [x] Destacar pergunta como sendo respondida (admin)
+- [x] Marcar pergunta como respondida / em destaque (admin)
+- [x] Excluir pergunta com confirmação (admin)
+- [x] Loading state durante fetch das perguntas
+
+### Community Answers *(nova funcionalidade)*
+- [x] Participantes podem responder perguntas de outros usuários
+- [x] Seção de respostas colapsável por pergunta (toggle por ID)
+- [x] Curtir / descurtir respostas (like em tempo real)
+- [x] Admin pode marcar a **melhor resposta** (exclusivo — uma por pergunta)
+- [x] Melhor resposta destacada com badge dourado ⭐ e ordenada no topo
+- [x] Formulário inline de resposta com avatar do usuário
+- [x] Animação de entrada na lista de respostas
+
+---
+
+## 🗺️ Roadmap
+
+### Em progresso
+- [ ] Listagem de participantes da sala
+
+### Planejado
+- [ ] Paginação / virtualização da lista de perguntas
+- [ ] Ordenação de perguntas (mais curtidas / mais recentes)
+- [ ] Modo somente leitura para salas encerradas (histórico)
+- [ ] Notificação em tempo real para o admin quando nova pergunta chega
+- [ ] Moderação — silenciar participante da sala
+- [ ] Reações emoji em perguntas (além do like)
+- [ ] Exportar perguntas da sala em `.csv` / `.pdf`
+- [ ] PWA / instalação mobile
+
+---
+
+## ⚙️ Como rodar localmente
+
+```bash
+# Clone o repositório
+git clone https://github.com/LucasGabrielGit/letmeask.git
+cd letmeask
+
+# Instale as dependências
+bun install   # ou npm install
+
+# Configure as variáveis de ambiente
+cp .env.example .env
+# Preencha as credenciais do Firebase no .env
+
+# Rode o servidor de desenvolvimento
+bun dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Acesse `http://localhost:5173` no navegador.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🔑 Variáveis de ambiente
+
+Crie um arquivo `.env` na raiz com as chaves do seu projeto Firebase:
+
+```env
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_DATABASE_URL=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
 ```
+
+---
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT.
