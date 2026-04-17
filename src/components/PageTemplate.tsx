@@ -5,8 +5,8 @@ interface PageTemplateProps {
 
 export const PageTemplate = ({ children }: PageTemplateProps) => {
   return (
-    <div className="flex h-screen items-stretch w-full">
-      <aside className="hidden flex-3/12 md:flex lg:flex flex-col items-center justify-center px-12 lg:px-24 bg-[#835afd] text-white w-full">
+    <div className="flex min-h-screen items-stretch w-full">
+      <aside className="hidden flex-1 md:flex lg:flex flex-col items-center justify-center px-12 lg:px-24 bg-[#835afd] text-white w-full">
         <img
           src={illustration}
           alt="Ilustração simbolizando perguntas e respostas"
@@ -19,7 +19,6 @@ export const PageTemplate = ({ children }: PageTemplateProps) => {
           Aprenda e compartilhe conhecimento <br /> com outras pessoas
         </p>
       </aside>
-
       {children}
     </div>
   );

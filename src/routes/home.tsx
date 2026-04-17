@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { database } from "@/services/firebase";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { onValue, ref } from "firebase/database";
-import { LogIn } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 import { useCallback, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 
@@ -16,17 +16,17 @@ export const Route = createFileRoute("/home")({
 });
 
 function RouteComponent() {
-  const { user, signInWithGoogle } = useAuth();
+  const { user, signInWithGoogle, isAuthenticated } = useAuth();
   const [roomCode, setRoomCode] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
   const handleCreateRoom = useCallback(async () => {
     if (!user) {
       await signInWithGoogle();
     }
 
     navigate({
-      to: "/new-room",
+      to: "/app/new-room",
       replace: true,
     });
   }, [user, signInWithGoogle]);
@@ -35,33 +35,41 @@ function RouteComponent() {
     async (e: ChangeEvent) => {
       e.preventDefault();
 
-      if (roomCode.trim() === "") return;
+      try {
+        setLoading(true);
+        if (roomCode.trim() === "") return;
 
-      const roomRef = ref(database, `rooms/${roomCode}`);
+        const roomRef = ref(database, `rooms/${roomCode}`);
 
-      onValue(
-        roomRef,
-        (snapshot) => {
-          const data = snapshot.val();
+        onValue(
+          roomRef,
+          (snapshot) => {
+            const data = snapshot.val();
 
-          if (!data) {
-            toast.error("Room does not exist.");
-            return;
-          }
+            if (!data) {
+              toast.error("Sala não encontrada.");
+              setLoading(false);
+              return;
+            }
 
-          if (data.endedAt) {
-            toast.error("Room already closed.");
-            return;
-          }
+            if (data.endedAt) {
+              toast.error("Sala encerrada.");
+              setLoading(false);
+              return;
+            }
 
-          redirect({
-            to: "/rooms/$id",
-            params: { id: roomCode },
-            replace: true,
-          });
-        },
-        { onlyOnce: true },
-      );
+            navigate({
+              to: "/app/room/$id",
+              params: { id: roomCode },
+              replace: true,
+            });
+          },
+          { onlyOnce: true },
+        );
+      } catch (error) {
+        setLoading(false);
+        console.log(`Ocorreu um erro ao tentar entrar na sala: ${error}`);
+      }
     },
     [roomCode],
   );
@@ -78,8 +86,14 @@ function RouteComponent() {
             onClick={handleCreateRoom}
             className="h-12.5 rounded-lg font-medium bg-[#ea4335] text-white flex justify-center items-center cursor-pointer border-0 transition-colors hover:bg-[#ea4335]/90 mb-8 gap-2"
           >
-            <img src={googleIcon} alt="Google" className="w-4" />
-            Crie sua sala com o Google
+            {isAuthenticated ? (
+              "Criar nova sala"
+            ) : (
+              <>
+                <img src={googleIcon} alt="Google" className="w-4" />
+                Crie sua sala com o Google
+              </>
+            )}
           </Button>
 
           <div className="text-sm text-[#a8a8b3] flex items-center before:content-[''] before:flex-1 before:h-px before:bg-[#a8a8b3] before:mr-4 after:content-[''] after:flex-1 after:h-px after:bg-[#a8a8b3] after:ml-4 mb-8">
@@ -97,9 +111,13 @@ function RouteComponent() {
             <Button
               type="submit"
               className="h-12.5 bg-[#835afd] text-white flex justify-center items-center cursor-pointer border-0 transition-colors hover:bg-[#835afd]/90 disabled:opacity-50"
-              disabled={roomCode.trim() === ""}
+              disabled={roomCode.trim() === "" || loading}
             >
-              <LogIn className="w-5 h-5 mr-2" />
+              {loading ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <LogIn className="w-5 h-5 mr-2" />
+              )}
               Entrar na sala
             </Button>
           </form>
