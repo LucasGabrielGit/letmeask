@@ -3,6 +3,11 @@ import logo from "@/assets/logo.svg";
 import { AnswerSection } from "@/components/AnswerSection";
 import { BadgeTitle } from "@/components/BadgeTitle";
 import { Question } from "@/components/Question";
+import {
+  QuestionFilters,
+  type FilterOption,
+  type SortOption,
+} from "@/components/QuestionFilters";
 import { RoomCode } from "@/components/RoomCode";
 import { SettingsDropdown } from "@/components/SettingsDropdown";
 import { ToggleSwitch } from "@/components/toggle-switch";
@@ -34,7 +39,7 @@ import {
   Trash,
   Users,
 } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/_layout/admin-room/$id")({
@@ -45,6 +50,8 @@ function RouteComponent() {
   const { id } = Route.useParams();
   const { questions, title, loading } = useRoom(id);
   const { theme } = useTheme();
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
   const logoSource = theme === "dark" ? logoLight : logo;
   const navigate = useNavigate();
@@ -159,7 +166,27 @@ function RouteComponent() {
           <Loading />
         ) : (
           <div className="flex flex-col gap-4 justify-center">
-            {questions.map((q) => (
+            <QuestionFilters
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              filterBy={filterBy}
+              onFilterChange={setFilterBy}
+              showFilters
+            />
+            {[...questions]
+              .filter((q) => {
+                if (filterBy === "unanswered") return !q.isAnswered;
+                if (filterBy === "answered") return q.isAnswered;
+                if (filterBy === "highlighted") return q.isHighlighted;
+                return true;
+              })
+              .sort((a, b) => {
+                if (sortBy === "top") return b.likesCount - a.likesCount;
+                if (sortBy === "most-answered")
+                  return b.answers.length - a.answers.length;
+                return 0;
+              })
+              .map((q) => (
               <Question key={q.id} question={q}>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1">

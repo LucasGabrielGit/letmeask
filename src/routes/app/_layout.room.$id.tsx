@@ -4,6 +4,10 @@ import { AnswerSection } from "@/components/AnswerSection";
 import { BadgeTitle } from "@/components/BadgeTitle";
 import { EmptyQuestions } from "@/components/EmptyQuestions";
 import { Question } from "@/components/Question";
+import {
+  QuestionFilters,
+  type SortOption,
+} from "@/components/QuestionFilters";
 import { RoomCode } from "@/components/RoomCode";
 import { SettingsDropdown } from "@/components/SettingsDropdown";
 import { ToggleSwitch } from "@/components/toggle-switch";
@@ -47,6 +51,7 @@ function RouteComponent() {
   const { questions, title, loading: isRoomLoading } = useRoom(id);
   const [loading, setLoading] = useState(false);
   const [openAnswerId, setOpenAnswerId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
   const navigate = useNavigate();
 
   const { theme } = useTheme();
@@ -251,7 +256,15 @@ function RouteComponent() {
           </div>
         ) : questions.length > 0 ? (
           <div className="flex flex-col gap-4 justify-center">
-            {questions.map((q) => {
+            <QuestionFilters sortBy={sortBy} onSortChange={setSortBy} />
+            {[...questions]
+              .sort((a, b) => {
+                if (sortBy === "top") return b.likesCount - a.likesCount;
+                if (sortBy === "most-answered")
+                  return b.answers.length - a.answers.length;
+                return 0; // "recent": mantém ordem do Firebase
+              })
+              .map((q) => {
               return (
                 <Question key={q.id} question={q}>
                   <div className="flex gap-2 justify-end">
