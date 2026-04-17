@@ -2,6 +2,7 @@ import logoLight from "@/assets/logo-light.svg";
 import logo from "@/assets/logo.svg";
 import { AnswerSection } from "@/components/AnswerSection";
 import { BadgeTitle } from "@/components/BadgeTitle";
+import { ParticipantsList } from "@/components/ParticipantsList";
 import { Question } from "@/components/Question";
 import {
   QuestionFilters,
@@ -28,6 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/context/ThemeContext";
 import { useRoom } from "@/hooks/useRoom";
+import { usePresence } from "@/hooks/usePresence";
 import { database } from "@/services/firebase";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ref, remove, update } from "firebase/database";
@@ -52,6 +54,9 @@ function RouteComponent() {
   const { theme } = useTheme();
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
+  const [showParticipants, setShowParticipants] = useState(false);
+
+  const { participants } = usePresence(id);
 
   const logoSource = theme === "dark" ? logoLight : logo;
   const navigate = useNavigate();
@@ -126,7 +131,7 @@ function RouteComponent() {
   };
 
   const options = [
-    <DropdownMenuItem>
+    <DropdownMenuItem onClick={() => setShowParticipants(true)}>
       <Users />
       Participantes
     </DropdownMenuItem>,
@@ -139,6 +144,11 @@ function RouteComponent() {
 
   return (
     <Fragment>
+      <ParticipantsList
+        open={showParticipants}
+        onOpenChange={setShowParticipants}
+        participants={participants}
+      />
       <header className="sticky top-0 z-50 bg-slate-200 backdrop-blur dark:bg-[#222222]/80 supports-backdrop-filter:bg-white/60 shadow-md w-full lg:px-40 md:px-20 sm:px-8 px-6">
         <div className="flex h-16 items-center justify-between sm:justify-between">
           <div className="flex items-center gap-4">

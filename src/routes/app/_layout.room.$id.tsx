@@ -4,6 +4,7 @@ import { AnswerSection } from "@/components/AnswerSection";
 import { BadgeTitle } from "@/components/BadgeTitle";
 import { EmptyQuestions } from "@/components/EmptyQuestions";
 import { Question } from "@/components/Question";
+import { ParticipantsList } from "@/components/ParticipantsList";
 import {
   QuestionFilters,
   type SortOption,
@@ -21,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
+import { usePresence } from "@/hooks/usePresence";
 import { useRoom } from "@/hooks/useRoom";
 import { database } from "@/services/firebase";
 import {
@@ -52,7 +54,10 @@ function RouteComponent() {
   const [loading, setLoading] = useState(false);
   const [openAnswerId, setOpenAnswerId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [showParticipants, setShowParticipants] = useState(false);
   const navigate = useNavigate();
+
+  const { participants } = usePresence(id);
 
   const { theme } = useTheme();
 
@@ -177,7 +182,7 @@ function RouteComponent() {
   };
 
   const options = [
-    <DropdownMenuItem>
+    <DropdownMenuItem onClick={() => setShowParticipants(true)}>
       <Users />
       Participantes
     </DropdownMenuItem>,
@@ -189,7 +194,13 @@ function RouteComponent() {
   ];
 
   return (
-    <div className="w-full h-screen">
+    <>
+      <ParticipantsList
+        open={showParticipants}
+        onOpenChange={setShowParticipants}
+        participants={participants}
+      />
+      <div className="w-full h-screen">
       <header className="sticky top-0 z-50 bg-slate-200 backdrop-blur dark:bg-[#222222]/80 supports-backdrop-filter:bg-white/60 shadow-md w-full lg:px-40 md:px-20 sm:px-8 px-6">
         <div className="flex h-16 items-center justify-between sm:justify-between">
           <div className="flex items-center gap-4">
@@ -317,5 +328,6 @@ function RouteComponent() {
         )}
       </main>
     </div>
+    </>
   );
 }
