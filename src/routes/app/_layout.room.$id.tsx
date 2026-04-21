@@ -8,23 +8,22 @@ import { ParticipantsList } from "@/components/ParticipantsList";
 import { QuestionFilters, type SortOption } from "@/components/QuestionFilters";
 import { RoomCode } from "@/components/RoomCode";
 import { SettingsDropdown } from "@/components/SettingsDropdown";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { ToggleSwitch } from "@/components/toggle-switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { useRoom } from "@/hooks/useRoom";
+import { pushNotification } from "@/hooks/useNotifications";
 import { database } from "@/services/firebase";
 import {
   createFileRoute,
   Link,
+  redirect,
   useNavigate,
   useParams,
 } from "@tanstack/react-router";
@@ -33,11 +32,24 @@ import {
   Loader2,
   LogOut,
   MessageSquareMore,
+  SmilePlus,
   ThumbsUp,
   Users,
 } from "lucide-react";
-import { useEffect, useState, type ChangeEvent } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 export const Route = createFileRoute("/app/_layout/room/$id")({
   component: RouteComponent,
@@ -48,7 +60,12 @@ function RouteComponent() {
   const { id } = useParams({ from: "/app/_layout/room/$id" });
   const { user, isAuthenticated, signInWithGoogle } = useAuth();
 
-  const { questions, title, loading: isRoomLoading } = useRoom(id);
+  const {
+    questions,
+    title,
+    loading: isRoomLoading,
+    authorId: roomAuthorId,
+  } = useRoom(id);
   const [loading, setLoading] = useState(false);
   const [openAnswerId, setOpenAnswerId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("recent");
@@ -74,17 +91,21 @@ function RouteComponent() {
     });
   }, [id, navigate]);
 
-  const handleSendQuestion = async (event: ChangeEvent) => {
+  const handleSendQuestion = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     setLoading(true);
 
     if (newQuestion.trim() === "") {
       toast.info("Digite uma pergunta.");
+      setLoading(false);
       return;
     }
 
     if (!user) {
       toast.info("Você precisa estar logado para fazer uma pergunta.");
+      setLoading(false);
       return;
     }
 
@@ -93,6 +114,7 @@ function RouteComponent() {
     const question = {
       content: newQuestion,
       author: {
+        id: user.id,
         name: user.name,
         avatar: user.avatar,
       },
@@ -104,24 +126,46 @@ function RouteComponent() {
 
     await set(newQuestionRef, question);
 
+    if (roomAuthorId && roomAuthorId !== user.id) {
+      await pushNotification(roomAuthorId, {
+        type: "new_question",
+        content: `${user.name} fez uma nova pergunta: "${newQuestion.substring(0, 20)}..."`,
+        roomId: id,
+        read: false,
+        createdAt: Date.now(),
+      });
+    }
+
     setLoading(false);
     setNewQuestion("");
   };
 
-  const handleLikeQuestion = async (
+  const handleReactToQuestion = async (
     questionId: string,
-    likeId: string | undefined,
+    emoji: string,
+    existingLikeId: string | undefined,
+    existingReactionType: string | undefined,
   ) => {
     if (!isAuthenticated) {
-      toast.info("Você precisa estar logado para curtir uma pergunta.");
+      toast.info("Você precisa estar logado para reagir a uma pergunta.");
       return;
     }
-    if (likeId) {
-      const questionLikeRef = ref(
-        database,
-        `rooms/${id}/questions/${questionId}/likes/${likeId}`,
-      );
-      await remove(questionLikeRef);
+    const targetQ = questions.find((q) => q.id === questionId);
+
+    if (existingLikeId) {
+      if (existingReactionType === emoji) {
+        const questionLikeRef = ref(
+          database,
+          `rooms/${id}/questions/${questionId}/likes/${existingLikeId}`,
+        );
+        await remove(questionLikeRef);
+      } else {
+        const questionLikeRef = ref(
+          database,
+          `rooms/${id}/questions/${questionId}/likes/${existingLikeId}`,
+        );
+        await set(questionLikeRef, { authorId: user?.id, type: emoji });
+      }
     } else {
       const questionLikeRef = ref(
         database,
@@ -129,11 +173,26 @@ function RouteComponent() {
       );
       await push(questionLikeRef, {
         authorId: user?.id,
+        type: emoji,
       });
+
+      if (targetQ && targetQ.author.id && targetQ.author.id !== user?.id) {
+        await pushNotification(targetQ.author.id, {
+          type: "like",
+          content: `${user?.name} reagiu com ${emoji} à sua pergunta "${targetQ.content.substring(0, 20)}..."`,
+          roomId: id,
+          read: false,
+          createdAt: Date.now(),
+        });
+      }
     }
   };
 
-  const handleSendAnswer = async (questionId: string, content: string) => {
+  const handleSendAnswer = async (
+    questionId: string,
+    content: string,
+    replyToId?: string,
+  ) => {
     if (!user) return;
 
     const answersRef = ref(
@@ -144,15 +203,28 @@ function RouteComponent() {
     const answer = {
       content,
       author: {
+        id: user.id,
         name: user.name,
         avatar: user.avatar,
       },
       createdAt: Date.now(),
       isBestAnswer: false,
+      replyToId: replyToId || null,
     };
 
     const newAnswerRef = push(answersRef, answer);
     await set(newAnswerRef, answer);
+
+    const targetQ = questions.find((q) => q.id === questionId);
+    if (targetQ && targetQ.author.id && targetQ.author.id !== user.id) {
+      await pushNotification(targetQ.author.id, {
+        type: "answer",
+        content: `${user.name} respondeu sua pergunta: "${targetQ.content.substring(0, 20)}..."`,
+        roomId: id,
+        read: false,
+        createdAt: Date.now(),
+      });
+    }
   };
 
   const handleLikeAnswer = async (
@@ -185,7 +257,12 @@ function RouteComponent() {
       Participantes
     </DropdownMenuItem>,
     <DropdownMenuSeparator />,
-    <DropdownMenuItem variant={"destructive"} onClick={}>
+    <DropdownMenuItem
+      variant={"destructive"}
+      onClick={() => {
+        navigate({ to: "/home" });
+      }}
+    >
       <LogOut />
       Sair da sala
     </DropdownMenuItem>,
@@ -211,6 +288,7 @@ function RouteComponent() {
               </Link>
             </div>
             <div className="flex items-center gap-2">
+              <NotificationsDropdown />
               <RoomCode code={id} />
               <ToggleSwitch />
               <SettingsDropdown children={options} />
@@ -251,7 +329,7 @@ function RouteComponent() {
                   </Button>
                 </small>
               )}
-              <Button disabled={!user || !newQuestion.trim()}>
+              <Button disabled={loading || !user || !newQuestion.trim()}>
                 {loading ? <Loader2 className="animate-spin" /> : "Enviar"}
               </Button>
             </div>
@@ -271,38 +349,130 @@ function RouteComponent() {
                   if (sortBy === "top") return b.likesCount - a.likesCount;
                   if (sortBy === "most-answered")
                     return b.answers.length - a.answers.length;
-                  return 0; // "recent": mantém ordem do Firebase
+                  return 0;
                 })
                 .map((q) => {
                   return (
                     <Question key={q.id} question={q}>
-                      <div className="flex gap-2 justify-end">
-                        {!q.isAnswered && (
-                          <Button
-                            variant={"outline"}
-                            size={"icon-lg"}
-                            className="hover:bg-slate-300 cursor-pointer group/like flex gap-1 items-center justify-center"
-                            onClick={() => {
-                              handleLikeQuestion?.(q.id, q.likeId);
-                            }}
+                      <div className="flex flex-col mt-4">
+                        {/* Top Line: Stats */}
+                        <div className="flex items-center justify-between text-sm text-muted-foreground pb-3 border-b border-border">
+                          <div className="flex items-center gap-1.5">
+                            {Object.keys(q.reactionsCount).length > 0 && (
+                              <div className="flex -space-x-1.5 items-center">
+                                {Object.entries(q.reactionsCount).map(
+                                  ([emoji], index) => (
+                                    <div
+                                      key={emoji}
+                                      className="w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-[#222222]"
+                                      style={{ zIndex: 10 - index }}
+                                    >
+                                      <span className="text-[14px]">
+                                        {emoji}
+                                      </span>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
+                            {Object.values(q.reactionsCount).reduce(
+                              (a, b) => a + b,
+                              0,
+                            ) > 0 && (
+                              <span>
+                                {Object.values(q.reactionsCount).reduce(
+                                  (a, b) => a + b,
+                                  0,
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Answer Count */}
+                          <span
+                            className="cursor-pointer hover:underline"
+                            onClick={() =>
+                              setOpenAnswerId(
+                                openAnswerId === q.id ? null : q.id,
+                              )
+                            }
                           >
-                            {q.likesCount}
-                            <ThumbsUp
-                              className={`group-hover/like:text-green-500 ${q.likeId ? "text-green-500" : "text-muted-foreground"} mb-1`}
-                            />
+                            {q.answers.length}{" "}
+                            {q.answers.length === 1
+                              ? "comentário"
+                              : "comentários"}
+                          </span>
+                        </div>
+
+                        {/* Bottom Line: Actions */}
+                        <div className="flex items-center pt-2 gap-2">
+                          {!q.isAnswered && (
+                            <HoverCard openDelay={200} closeDelay={200}>
+                              <HoverCardTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  className={`flex-1 sm:flex-none h-10 px-4 rounded-md font-semibold text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer ${q.userReactionType ? "text-[#835afd] dark:text-[#835afd]" : ""}`}
+                                  onClick={() =>
+                                    handleReactToQuestion(
+                                      q.id,
+                                      q.userReactionType || "👍",
+                                      q.likeId,
+                                      q.userReactionType,
+                                    )
+                                  }
+                                >
+                                  {q.userReactionType ? (
+                                    <span className="flex gap-2 items-center text-base">
+                                      <span className="text-xl mb-0.5">
+                                        {q.userReactionType}
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    <span className="flex gap-2 items-center">
+                                      <ThumbsUp className="w-4 h-4 mb-0.5" />{" "}
+                                      Curtir
+                                    </span>
+                                  )}
+                                </Button>
+                              </HoverCardTrigger>
+                              <HoverCardContent
+                                side="top"
+                                align="start"
+                                className="w-auto flex gap-1 p-2 bg-white dark:bg-slate-900 rounded-[28px] shadow-lg border-muted"
+                              >
+                                {["👍", "❤️", "😂", "😮", "😢"].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    className="w-10 h-10 flex items-center justify-center rounded-full text-2xl hover:scale-125 hover:-translate-y-2 origin-bottom transition-all duration-200 cursor-pointer"
+                                    onClick={() =>
+                                      handleReactToQuestion(
+                                        q.id,
+                                        emoji,
+                                        q.likeId,
+                                        q.userReactionType,
+                                      )
+                                    }
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </HoverCardContent>
+                            </HoverCard>
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            className="flex-1 sm:flex-none h-10 px-4 rounded-md font-semibold text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800 flex gap-2 items-center cursor-pointer"
+                            onClick={() =>
+                              setOpenAnswerId(
+                                openAnswerId === q.id ? null : q.id,
+                              )
+                            }
+                          >
+                            <MessageSquareMore className="w-4 h-4" /> Comentar
                           </Button>
-                        )}
-                        <Button
-                          variant={
-                            openAnswerId === q.id ? "default" : "outline"
-                          }
-                          onClick={() =>
-                            setOpenAnswerId(openAnswerId === q.id ? null : q.id)
-                          }
-                        >
-                          <MessageSquareMore />
-                          {q.answers.length} respostas
-                        </Button>
+                        </div>
                       </div>
                       {openAnswerId === q.id && (
                         <AnswerSection

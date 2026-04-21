@@ -7,6 +7,7 @@ export type AnswerType = {
   id: string;
   content: string;
   author: {
+    id?: string;
     name: string;
     avatar: string;
   };
@@ -14,37 +15,45 @@ export type AnswerType = {
   isBestAnswer: boolean;
   likesCount: number;
   likeId: string | undefined;
+  reactionsCount: Record<string, number>;
+  userReactionType: string | undefined;
+  replyToId?: string;
 };
 
 export type FirebaseQuestions = Record<
   string,
   {
     author: {
+      id?: string;
       name: string;
       avatar: string;
     };
     content: string;
     isAnswered: boolean;
     isHighlighted: boolean;
+    attachmentBase64?: string;
     likes: Record<
       string,
       {
         authorId: string;
+        type?: string;
       }
     >;
     answers: Record<
       string,
       {
         content: string;
-        author: { name: string; avatar: string };
+        author: { id?: string; name: string; avatar: string };
         createdAt: number;
         isBestAnswer: boolean;
         likes: Record<
           string,
           {
             authorId: string;
+            type?: string;
           }
         >;
+        replyToId?: string;
       }
     >;
   }
@@ -53,14 +62,18 @@ export type FirebaseQuestions = Record<
 export type QuestionType = {
   id: string;
   author: {
+    id?: string;
     name: string;
     avatar: string;
   };
   content: string;
   isAnswered: boolean;
   isHighlighted: boolean;
+  attachmentBase64?: string;
   likesCount: number;
   likeId: string | undefined;
+  reactionsCount: Record<string, number>;
+  userReactionType: string | undefined;
   answers: AnswerType[];
 };
 
@@ -69,6 +82,7 @@ export const useRoom = (roomId: string) => {
   const [questions, setQuestions] = useState<QuestionType[]>([]);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [authorId, setAuthorId] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -87,17 +101,34 @@ export const useRoom = (roomId: string) => {
           const parsedAnswers: AnswerType[] = Object.entries(
             value.answers ?? {},
           )
-            .map(([answerId, answer]) => ({
-              id: answerId,
-              content: answer.content,
-              author: answer.author,
-              createdAt: answer.createdAt,
-              isBestAnswer: answer.isBestAnswer ?? false,
-              likesCount: Object.keys(answer.likes ?? {}).length,
-              likeId: Object.entries(answer.likes ?? {}).find(
+            .map(([answerId, answer]) => {
+              const reactionsCount = Object.values(answer.likes ?? {}).reduce(
+                (acc, like) => {
+                  const t = like.type || "👍";
+                  acc[t] = (acc[t] || 0) + 1;
+                  return acc;
+                },
+                {} as Record<string, number>,
+              );
+              const userLikeParams = Object.entries(answer.likes ?? {}).find(
                 ([, like]) => like.authorId === user?.id,
-              )?.[0],
-            }))
+              );
+
+              return {
+                id: answerId,
+                content: answer.content,
+                author: answer.author,
+                createdAt: answer.createdAt,
+                isBestAnswer: answer.isBestAnswer ?? false,
+                likesCount: Object.keys(answer.likes ?? {}).length,
+                likeId: userLikeParams?.[0],
+                reactionsCount,
+                userReactionType:
+                  userLikeParams?.[1].type ||
+                  (userLikeParams ? "👍" : undefined),
+                replyToId: answer.replyToId,
+              };
+            })
             .sort((a, b) => {
               // Melhor resposta sempre no topo, depois por data
               if (a.isBestAnswer !== b.isBestAnswer)
@@ -105,20 +136,35 @@ export const useRoom = (roomId: string) => {
               return a.createdAt - b.createdAt;
             });
 
+          const reactionsCount = Object.values(value.likes ?? {}).reduce(
+            (acc, like) => {
+              const t = like.type || "👍";
+              acc[t] = (acc[t] || 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>,
+          );
+          const userLikeParams = Object.entries(value.likes ?? {}).find(
+            ([, like]) => like.authorId === user?.id,
+          );
+
           return {
             id: key,
             content: value.content,
             author: value.author,
             isAnswered: value.isAnswered,
             isHighlighted: value.isHighlighted,
+            attachmentBase64: value.attachmentBase64,
             likesCount: Object.keys(value.likes ?? {}).length,
-            likeId: Object.entries(value.likes ?? {}).find(
-              ([, like]) => like.authorId === user?.id,
-            )?.[0],
+            likeId: userLikeParams?.[0],
+            reactionsCount,
+            userReactionType:
+              userLikeParams?.[1].type || (userLikeParams ? "👍" : undefined),
             answers: parsedAnswers,
           };
         });
       setTitle(databaseRoom.title);
+      setAuthorId(databaseRoom.authorId);
       setQuestions(parsedQuestions);
       setLoading(false);
     });
@@ -128,5 +174,5 @@ export const useRoom = (roomId: string) => {
     };
   }, [roomId, user?.id]);
 
-  return { questions, title, loading };
+  return { questions, title, loading, authorId };
 };

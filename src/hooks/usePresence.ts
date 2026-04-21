@@ -1,5 +1,12 @@
 import { database } from "@/services/firebase";
-import { onDisconnect, onValue, ref, serverTimestamp, set, remove } from "firebase/database";
+import {
+  onDisconnect,
+  onValue,
+  ref,
+  remove,
+  serverTimestamp,
+  set,
+} from "firebase/database";
 import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 
@@ -18,10 +25,7 @@ export const usePresence = (roomId: string) => {
     if (!user) return;
 
     const connectedRef = ref(database, ".info/connected");
-    const presenceRef = ref(
-      database,
-      `rooms/${roomId}/presence/${user.id}`,
-    );
+    const presenceRef = ref(database, `rooms/${roomId}/presence/${user.id}`);
 
     // Ouve o estado de conexão do Firebase
     const unsubscribe = onValue(connectedRef, async (snapshot) => {
@@ -40,7 +44,6 @@ export const usePresence = (roomId: string) => {
 
     return () => {
       unsubscribe();
-      // Remove presença ao desmontar o componente (saída intencional)
       remove(presenceRef);
     };
   }, [roomId, user]);
@@ -50,12 +53,10 @@ export const usePresence = (roomId: string) => {
 
     const unsubscribe = onValue(presenceListRef, (snapshot) => {
       const data = snapshot.val() ?? {};
-      const list: PresenceUser[] = Object.entries(data).map(
-        ([id, value]) => ({
-          id,
-          ...(value as Omit<PresenceUser, "id">),
-        }),
-      );
+      const list: PresenceUser[] = Object.entries(data).map(([id, value]) => ({
+        id,
+        ...(value as Omit<PresenceUser, "id">),
+      }));
       // Ordena por quem entrou primeiro
       list.sort((a, b) => a.joinedAt - b.joinedAt);
       setParticipants(list);

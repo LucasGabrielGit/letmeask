@@ -1,11 +1,6 @@
 import type { PresenceUser } from "@/hooks/usePresence";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "./ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Users } from "lucide-react";
 
 interface ParticipantsListProps {
@@ -26,13 +21,13 @@ export const ParticipantsList = ({
           <SheetTitle className="flex items-center gap-2 text-base">
             <Users className="w-4 h-4" />
             Participantes na sala
-            <span className="ml-auto text-xs font-normal bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-              {participants.length} online
-            </span>
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-6rem)] pr-1">
+        <div className="mt-4 flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-6rem)]">
+          <span className="w-16 text-xs font-normal bg-green-200 text-green-800 px-2 py-0.5 rounded-full ml-3">
+            {participants.length} online
+          </span>
           {participants.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center mt-8">
               Nenhum participante no momento.

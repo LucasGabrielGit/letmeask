@@ -11,6 +11,7 @@ import {
 } from "@/components/QuestionFilters";
 import { RoomCode } from "@/components/RoomCode";
 import { SettingsDropdown } from "@/components/SettingsDropdown";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { ToggleSwitch } from "@/components/toggle-switch";
 import { Button } from "@/components/ui/button";
 import {
@@ -161,6 +162,7 @@ function RouteComponent() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationsDropdown />
             <RoomCode code={id} />
             <ToggleSwitch />
             <SettingsDropdown children={options} />

@@ -33,7 +33,6 @@ export const Question = ({ question, children }: QuestionProps) => {
           <p className="leading-6 mb-6 text-foreground text-base">
             {question.content}
           </p>
-
           {children}
         </div>
       </CardContent>

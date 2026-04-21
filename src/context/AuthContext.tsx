@@ -1,6 +1,6 @@
 import { auth } from "@/services/firebase";
 import { redirect } from "@tanstack/react-router";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 import { createContext, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +29,23 @@ export const AuthContextProvider = ({ children }: AuthContextProp) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        setIsLoading(false);
+        if (result?.user) {
+          const redirectPath = sessionStorage.getItem("redirectAfterLogin");
+          if (redirectPath) {
+            sessionStorage.removeItem("redirectAfterLogin");
+            window.location.href = redirectPath;
+          }
+        }
+      })
+      .catch((error) => {
+        setIsLoading(false);
+        console.error("Redirect auth error", error);
+        toast.error("Erro ao tentar fazer login");
+      });
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         const { displayName, uid, photoURL } = user;
@@ -52,15 +69,20 @@ export const AuthContextProvider = ({ children }: AuthContextProp) => {
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    try {
-      if (result.user) {
-        const { displayName, uid, photoURL } = result.user;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        if (!displayName || !photoURL) {
-          toast.error("Missing information from Google Account");
-          return;
-        }
+    try {
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        const result = await signInWithPopup(auth, provider);
+        if (result.user) {
+          const { displayName, uid, photoURL } = result.user;
+
+          if (!displayName || !photoURL) {
+            toast.error("Missing information from Google Account");
+            return;
+          }
 
         setUser({
           id: uid,
@@ -68,9 +90,11 @@ export const AuthContextProvider = ({ children }: AuthContextProp) => {
           avatar: photoURL,
         });
         setIsLoading(false);
+        }
       }
     } catch (error) {
       console.log(error);
+      toast.error("Erro ao realizar login");
       setIsLoading(false);
     }
   }, []);
