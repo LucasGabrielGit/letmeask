@@ -7,6 +7,8 @@ import { TooltipProvider } from "./components/ui/tooltip.tsx";
 import { AuthContextProvider } from "./context/AuthContext.tsx";
 import "./index.css";
 import { routeTree } from "./routeTree.gen.ts";
+import { Toaster } from "./components/ui/sonner.tsx";
+import { ThemeProvider } from "./context/ThemeContext.tsx";
 
 const queryClient = new QueryClient();
 
@@ -21,9 +23,12 @@ const router = createRouter({
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <AuthContextProvider>
-            <SidebarProvider>{children}</SidebarProvider>
-          </AuthContextProvider>
+          <ThemeProvider>
+            <AuthContextProvider>
+              <Toaster richColors position="top-center" duration={2000} />
+              {children}
+            </AuthContextProvider>
+          </ThemeProvider>
         </TooltipProvider>
       </QueryClientProvider>
     );
